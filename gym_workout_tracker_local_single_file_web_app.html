@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Gym Workout Tracker</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #0b1222;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22d3ee;
+      --accent-2: #38bdf8;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --bad: #f87171;
+      --border: #1f2937;
+      --shadow: 0 10px 25px rgba(0,0,0,.25);
+      --radius: 16px;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      font-size: 16px; /* prevent iOS zoom on focus */
+      -webkit-tap-highlight-color: transparent;
+      color: var(--text);
+      background: linear-gradient(180deg, #0b1020, #05070e);
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    header { display:flex; gap:18px; align-items:center; justify-content:space-between; margin-bottom: 20px; }
+    .title {
+      display:flex; align-items:center; gap:12px;
+      font-size: clamp(20px, 3vw, 28px); font-weight: 800;
+      letter-spacing: .4px; text-shadow: 0 4px 24px rgba(34,211,238,.25);
+    }
+    .badge { font-size: 12px; padding: 4px 8px; border:1px solid var(--border); color: var(--muted); border-radius: 999px; }
+    .card { background: radial-gradient(1200px 400px at 0% -20%, rgba(34,211,238,.06), transparent), var(--panel);
+            border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .card-inner { padding: 18px; }
+    .grid { display:grid; gap:12px; }
+    @media (min-width: 860px) { .grid.cols-2 { grid-template-columns: 1.1fr .9fr; } }
+    @media (max-width: 859.98px) {
+      .container { padding: 16px; }
+      header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .row { grid-template-columns: 1fr 1fr; }
+      .row-3 { grid-template-columns: 1fr; }
+      table { font-size: 15px; }
+    }
+    label { font-size: 12px; color: var(--muted); display:block; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border-radius: 12px;
+      background: #0b1222; color: var(--text); border: 1px solid var(--border);
+      outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(56,189,248,.15); }
+    .row { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+    .row-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+    .actions { display:flex; flex-wrap:wrap; gap: 10px; align-items:center; }
+    button { cursor: pointer; border:none; border-radius: 12px; padding: 10px 14px; font-weight: 700; letter-spacing:.2px; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#021016; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-bad { background: linear-gradient(135deg, #fb7185, #f43f5e); color: #1b0f12; }
+    .btn-good { background: linear-gradient(135deg, #34d399, #10b981); color: #03140f; }
+    .toolbar { display:flex; gap:10px; flex-wrap: wrap; align-items:center; justify-content: space-between; margin: 14px 0; }
+    .toolbar .left, .toolbar .right { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px 8px; text-align: left; font-size: 14px; }
+    th { color: var(--muted); font-weight: 600; position: sticky; top:0; background: var(--panel); z-index:2; }
+    tr:hover td { background: #0c1427; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; border-radius: 999px; border:1px solid var(--border); color: var(--muted); font-size: 12px; }
+    .volume { font-weight: 800; color: var(--good); }
+    .tiny { font-size: 12px; color: var(--muted); }
+    .footer { margin-top: 18px; color: var(--muted); font-size: 12px; display:flex; gap:8px; align-items:center; }
+    .link { color: var(--accent-2); text-decoration: none; border-bottom: 1px dashed rgba(56,189,248,.35); }
+    .ghost-input { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
+    .inline-btn { font-size: 12px; padding: 6px 8px; border-radius: 8px; border:1px solid var(--border); background: transparent; color: var(--muted); }
+    .no-data { text-align:center; padding: 22px; color: var(--muted); border: 1px dashed var(--border); border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title">🏋️‍♂️ Gym Workout Tracker <span class="badge">Local • Private • Offline</span></div>
+      <div class="actions">
+        <button class="btn-good" id="exportCsvBtn">Export CSV</button>
+        <button class="btn-ghost" id="exportJsonBtn">Export JSON</button>
+        <label for="importFile" class="btn-ghost" style="display:inline-flex; align-items:center; gap:8px;">Import <input id="importFile" type="file" accept=".csv,.json" style="display:none"></label>
+        <button class="btn-bad" id="clearAllBtn" title="Delete all data">Clear All</button>
+      </div>
+    </header>
+
+    <div class="grid cols-2">
+      <!-- Add Entry Card -->
+      <section class="card">
+        <div class="card-inner">
+          <h2 style="margin:0 0 10px 0">Add Workout</h2>
+          <div style="display:grid; gap: 10px;">
+            <div class="row">
+              <div>
+                <label>Date</label>
+                <input id="date" type="date" />
+              </div>
+              <div>
+                <label>Exercise</label>
+                <input id="exercise" list="exercises" placeholder="e.g., Bench Press" />
+                <datalist id="exercises"></datalist>
+              </div>
+              <div>
+                <label>Reps</label>
+                <input id="reps" type="number" min="0" inputmode="numeric" placeholder="e.g., 10" />
+              </div>
+              <div>
+                <label>Weight</label>
+                <input id="weight" type="number" min="0" step="0.5" inputmode="decimal" placeholder="e.g., 135" />
+              </div>
+            </div>
+            <div class="row-3">
+              <div>
+                <label>Set #</label>
+                <input id="setNumber" type="number" min="1" value="1" />
+              </div>
+              <div>
+                <label>Notes <span class="tiny">(optional)</span></label>
+                <input id="notes" placeholder="Tempo, RPE, machine #, etc." />
+              </div>
+              <div class="actions" style="justify-content:flex-end">
+                <button class="btn-primary" id="addBtn">Add Set</button>
+              </div>
+            </div>
+          </div>
+          <hr style="border:none; border-top:1px solid var(--border); margin:14px 0"/>
+          <div class="row-3">
+            <div>
+              <label>Quick Add — Sets</label>
+              <input id="qaSets" type="number" min="1" value="3" />
+            </div>
+            <div>
+              <label>Each: Reps × Weight</label>
+              <div style="display:flex; gap:8px;">
+                <input id="qaReps" type="number" min="0" class="ghost-input" placeholder="10"/>
+                <input id="qaWeight" type="number" min="0" step="0.5" class="ghost-input" placeholder="135"/>
+              </div>
+            </div>
+            <div class="actions" style="justify-content:flex-end">
+              <button class="btn-ghost" id="quickAddBtn">Add Multiple</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mobile hint -->
+      <p class="tiny" style="margin:8px 0 0 6px;opacity:.85;">Tip: On iOS Safari, Add to Home Screen for a full-screen app experience.</p>
+
+      <!-- Filters / Summary Card -->
+      <section class="card">
+        <div class="card-inner">
+          <h2 style="margin:0 0 10px 0">Filters & Summary</h2>
+          <div class="row">
+            <div>
+              <label>From</label>
+              <input id="fromDate" type="date" />
+            </div>
+            <div>
+              <label>To</label>
+              <input id="toDate" type="date" />
+            </div>
+            <div>
+              <label>Exercise</label>
+              <input id="filterExercise" placeholder="Search name" />
+            </div>
+            <div class="actions" style="align-items:end; justify-content:flex-end">
+              <button class="btn-ghost" id="resetFiltersBtn">Reset</button>
+            </div>
+          </div>
+          <div id="summary" style="margin-top:12px" class="tiny"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Progress Chart Card -->
+    <section class="card" style="margin-top:14px;">
+      <div class="card-inner">
+        <h2 style="margin:0 0 10px 0">Progress</h2>
+        <div class="row-3">
+          <div>
+            <label>Exercise</label>
+            <select id="chartExercise"></select>
+          </div>
+          <div>
+            <label>Metric</label>
+            <select id="chartMetric">
+              <option value="volume">Daily Volume (reps × weight)</option>
+              <option value="topWeight">Top Set Weight</option>
+              <option value="est1rm">Estimated 1RM (Epley)</option>
+            </select>
+          </div>
+          <div class="actions" style="justify-content:flex-end;align-items:end">
+            <button class="btn-ghost" id="chartResetZoom">Reset Zoom</button>
+          </div>
+        </div>
+        <div style="position:relative;margin-top:8px;">
+          <canvas id="chartCanvas" style="width:100%; height:260px; display:block; border:1px solid var(--border); border-radius:12px; background: var(--panel-2);"></canvas>
+          <div id="chartTooltip" class="tiny" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,.45); padding:6px 8px; border-radius:8px; display:none;"></div>
+        </div>
+        <div class="tiny" style="margin-top:8px; color:var(--muted);">Pinch to zoom (iOS). Drag to pan.</div>
+      </div>
+    </section>
+
+    <!-- Table Card -->
+    <section class="card" style="margin-top:14px;">
+      <div class="card-inner">
+        <div class="toolbar">
+          <div class="left">
+            <span class="pill">Total Sets: <strong id="totalSets">0</strong></span>
+            <span class="pill">Total Volume: <span class="volume" id="totalVolume">0</span></span>
+          </div>
+          <div class="right">
+            <input id="search" placeholder="Search notes / exercise" style="min-width: 220px;"/>
+          </div>
+        </div>
+        <div style="max-height: 50vh; overflow: auto; border:1px solid var(--border); border-radius: 12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Exercise</th>
+                <th>Set</th>
+                <th>Reps</th>
+                <th>Weight</th>
+                <th>Volume</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div id="noData" class="no-data" style="display:none;">No entries yet. Add your first set above 👆</div>
+      </div>
+    </section>
+
+    <div class="footer">
+      <span>💾 Your data lives in your browser via <code>localStorage</code> (private & offline).</span>
+      <span>•</span>
+      <a class="link" href="#" id="seedDemo">Seed demo data</a>
+      <span>•</span>
+      <a class="link" href="#" id="howTo">Quick help</a>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'gymTracker.v1';
+  /** @type {Array<{id:string,date:string,exercise:string,setNumber:number,reps:number,weight:number,notes:string,createdAt:number}>} */
+  let data = [];
+  const $ = sel => document.querySelector(sel);
+
+  // Elements
+  const el = {
+    date: $('#date'), exercise: $('#exercise'), reps: $('#reps'), weight: $('#weight'), setNumber: $('#setNumber'), notes: $('#notes'),
+    addBtn: $('#addBtn'), quickAddBtn: $('#quickAddBtn'), qaSets: $('#qaSets'), qaReps: $('#qaReps'), qaWeight: $('#qaWeight'),
+    tbody: $('#tbody'), totalSets: $('#totalSets'), totalVolume: $('#totalVolume'),
+    search: $('#search'), fromDate: $('#fromDate'), toDate: $('#toDate'), filterExercise: $('#filterExercise'), resetFiltersBtn: $('#resetFiltersBtn'),
+    exportCsvBtn: $('#exportCsvBtn'), exportJsonBtn: $('#exportJsonBtn'), importFile: $('#importFile'), clearAllBtn: $('#clearAllBtn'),
+    noData: $('#noData'), summary: $('#summary'), exercisesList: $('#exercises'), seedDemo: $('#seedDemo'), howTo: $('#howTo'),
+    chartExercise: $('#chartExercise'), chartMetric: $('#chartMetric'), chartCanvas: $('#chartCanvas'), chartTooltip: $('#chartTooltip'), chartResetZoom: $('#chartResetZoom')
+  };
+
+  // Init
+  el.date.valueAsNumber = Date.now() - new Date().getTimezoneOffset()*60000; // today
+  load();
+  render();
+  refreshExercisesDatalist();
+  refreshChartSelectors();
+  setupChart();
+
+  // Event listeners
+  el.addBtn.addEventListener('click', addSet);
+  el.quickAddBtn.addEventListener('click', quickAdd);
+  el.search.addEventListener('input', render);
+  el.fromDate.addEventListener('change', render); el.toDate.addEventListener('change', render); el.filterExercise.addEventListener('input', render);
+  el.resetFiltersBtn.addEventListener('click', () => { el.fromDate.value = el.toDate.value = el.filterExercise.value = el.search.value = ''; render(); });
+  el.exportCsvBtn.addEventListener('click', exportCSV);
+  el.exportJsonBtn.addEventListener('click', exportJSON);
+  el.importFile.addEventListener('change', importFile);
+  el.clearAllBtn.addEventListener('click', clearAll);
+  el.seedDemo.addEventListener('click', seedDemoData);
+  el.howTo.addEventListener('click', showHelp);
+  el.chartExercise.addEventListener('change', updateChart);
+  el.chartMetric.addEventListener('change', updateChart);
+  el.chartResetZoom.addEventListener('click', () => { chartState.xMin = chartState.dataXMin; chartState.xMax = chartState.dataXMax; updateChart(); });
+  window.addEventListener('resize', () => { resizeCanvas(); updateChart(); });
+
+  function uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  function load(){ try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { data = []; } }
+  function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+  function addSet(){
+    const date = el.date.value || new Date().toISOString().slice(0,10);
+    const exercise = (el.exercise.value || '').trim();
+    const reps = +el.reps.value; const weight = +el.weight.value; const setNumber = +el.setNumber.value || 1; const notes = (el.notes.value||'').trim();
+    if(!exercise) return alert('Please enter an exercise name.');
+    if(!(reps>0)) return alert('Please enter reps.');
+    if(!(weight>=0)) return alert('Please enter weight (0 if bodyweight).');
+    const entry = { id: uid(), date, exercise, setNumber, reps, weight, notes, createdAt: Date.now() };
+    data.push(entry); save(); render(); refreshExercisesDatalist(); refreshChartSelectors(); updateChart();
+    el.setNumber.value = setNumber + 1; el.reps.focus();
+  }
+
+  function quickAdd(){
+    const n = Math.max(1, +el.qaSets.value || 1);
+    if(!el.exercise.value.trim()) return alert('Enter an exercise name first.');
+    if(!(+el.qaReps.value>0) || !(+el.qaWeight.value>=0)) return alert('Enter reps & weight for quick add.');
+    for(let i=0;i<n;i++){
+      el.setNumber.value = (+(el.setNumber.value||1)) + 1;
+      el.reps.value = el.qaReps.value; el.weight.value = el.qaWeight.value; addSet();
+    }
+  }
+
+  function render(){
+    const q = (el.search.value||'').toLowerCase();
+    const fExercise = (el.filterExercise.value||'').toLowerCase();
+    const from = el.fromDate.value ? new Date(el.fromDate.value) : null;
+    const to = el.toDate.value ? new Date(el.toDate.value) : null;
+
+    const rows = data
+      .filter(x => !q || x.exercise.toLowerCase().includes(q) || (x.notes||'').toLowerCase().includes(q))
+      .filter(x => !fExercise || x.exercise.toLowerCase().includes(fExercise))
+      .filter(x => (!from || new Date(x.date) >= from) && (!to || new Date(x.date) <= to))
+      .sort((a,b) => a.date === b.date ? a.exercise.localeCompare(b.exercise) || a.setNumber - b.setNumber : (new Date(b.date) - new Date(a.date)));
+
+    const totalSets = rows.length;
+    const totalVolume = rows.reduce((s,x)=> s + (x.reps * x.weight), 0);
+    el.totalSets.textContent = totalSets;
+    el.totalVolume.textContent = Number(totalVolume.toFixed(2)).toLocaleString();
+
+    const groupKey = r => r.date + '|' + r.exercise;
+    const groups = new Map();
+    for(const r of rows){
+      const k = groupKey(r);
+      if(!groups.has(k)) groups.set(k, {date:r.date, exercise:r.exercise, volume:0, sets:0});
+      const g = groups.get(k); g.sets++; g.volume += r.reps * r.weight;
+    }
+    const top5 = [...groups.values()].sort((a,b)=> b.volume - a.volume).slice(0,5);
+    el.summary.innerHTML = top5.length ?
+      '<strong>Top by volume</strong>: ' + top5.map(g => `${g.exercise} <span class="tiny">(${g.date})</span> <span class="volume">${Math.round(g.volume)}</span>`).join(' · ')
+      : '<span class="tiny">Add entries to see a summary.</span>';
+
+    el.tbody.innerHTML = '';
+    if(rows.length === 0){ el.noData.style.display = 'block'; return; } else { el.noData.style.display = 'none'; }
+    const frag = document.createDocumentFragment();
+    for(const r of rows){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.date}</td>
+        <td>${escapeHtml(r.exercise)}</td>
+        <td>#${r.setNumber}</td>
+        <td>${r.reps}</td>
+        <td>${r.weight}</td>
+        <td class="tiny">${(r.reps*r.weight).toFixed(0)}</td>
+        <td>${escapeHtml(r.notes||'')}</td>
+        <td style="text-align:right">
+          <button class="inline-btn" data-edit="${r.id}">Edit</button>
+          <button class="inline-btn" data-dup="${r.id}">Duplicate</button>
+          <button class="inline-btn" data-del="${r.id}">Delete</button>
+        </td>`;
+      frag.appendChild(tr);
+    }
+    el.tbody.appendChild(frag);
+
+    el.tbody.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => delRow(btn.dataset.del)));
+    el.tbody.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => editRow(btn.dataset.edit)));
+    el.tbody.querySelectorAll('[data-dup]').forEach(btn => btn.addEventListener('click', () => duplicateRow(btn.dataset.dup)));
+  }
+
+  function editRow(id){
+    const r = data.find(x => x.id === id); if(!r) return;
+    const d = prompt('Edit date (YYYY-MM-DD):', r.date); if(d===null) return; r.date = d || r.date;
+    const e = prompt('Edit exercise:', r.exercise); if(e===null) return; r.exercise = e.trim() || r.exercise;
+    const s = prompt('Edit set number:', String(r.setNumber)); if(s===null) return; r.setNumber = Math.max(1, +s||r.setNumber);
+    const reps = prompt('Edit reps:', String(r.reps)); if(reps===null) return; r.reps = Math.max(0, +reps||r.reps);
+    const w = prompt('Edit weight:', String(r.weight)); if(w===null) return; r.weight = Math.max(0, +w||r.weight);
+    const n = prompt('Edit notes:', r.notes||''); if(n===null) return; r.notes = n;
+    save(); render(); refreshExercisesDatalist(); refreshChartSelectors(); updateChart();
+  }
+
+  function duplicateRow(id){
+    const r = data.find(x => x.id === id); if(!r) return;
+    const copy = { ...r, id: uid(), createdAt: Date.now(), setNumber: r.setNumber + 1 };
+    data.push(copy); save(); render(); updateChart();
+  }
+
+  function delRow(id){
+    if(!confirm('Delete this set?')) return; 
+    data = data.filter(x => x.id !== id); save(); render(); refreshExercisesDatalist(); refreshChartSelectors(); updateChart();
+  }
+
+  function exportCSV(){
+    const rows = [['date','exercise','setNumber','reps','weight','notes']]
+      .concat(data.map(x => [x.date, x.exercise, x.setNumber, x.reps, x.weight, (x.notes||'').replace(/
+/g,' ')]));
+    const csv = rows.map(r => r.map(v => /[",
+]/.test(String(v)) ? '"'+String(v).replace(/"/g,'""')+'"' : v).join(',')).join('
+');
+    download('workouts.csv', csv, 'text/csv');
+  }
+  function exportJSON(){ download('workouts.json', JSON.stringify(data, null, 2), 'application/json'); }
+  function importFile(ev){
+    const file = ev.target.files?.[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result||'');
+        let arr = [];
+        if(file.name.endsWith('.json')){
+          arr = JSON.parse(text);
+        } else {
+          const lines = text.split(/?
+/).filter(Boolean);
+          const [h, ...body] = lines; const headers = h.split(',').map(s=>s.trim());
+          const idx = k => headers.indexOf(k);
+          arr = body.map(line => {
+            const cols = parseCsvLine(line);
+            return { id: uid(), date: cols[idx('date')], exercise: cols[idx('exercise')], setNumber: +cols[idx('setNumber')], reps: +cols[idx('reps')], weight: +cols[idx('weight')], notes: cols[idx('notes')]||'', createdAt: Date.now() };
+          });
+        }
+        if(!Array.isArray(arr)) throw new Error('Invalid file');
+        data = data.concat(arr.map(x => ({ id: uid(), date: x.date, exercise: x.exercise, setNumber: +x.setNumber||1, reps: +x.reps||0, weight: +x.weight||0, notes: x.notes||'', createdAt: Date.now() })));
+        save(); render(); refreshExercisesDatalist(); refreshChartSelectors(); updateChart();
+        alert('Import complete.');
+      } catch(err){ alert('Import failed: '+ err.message); }
+      finally { ev.target.value = ''; }
+    };
+    reader.readAsText(file);
+  }
+
+  function clearAll(){
+    if(!confirm('This will permanently delete all saved sets in this browser. Continue?')) return;
+    data = []; save(); render(); refreshExercisesDatalist(); refreshChartSelectors(); updateChart();
+  }
+
+  function download(filename, content, type){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], {type}));
+    a.download = filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  }
+
+  function refreshExercisesDatalist(){
+    const unique = [...new Set(data.map(x => x.exercise).filter(Boolean))].sort((a,b)=> a.localeCompare(b));
+    el.exercisesList.innerHTML = unique.map(x => `<option value="${escapeHtml(x)}"></option>`).join('');
+  }
+
+  function refreshChartSelectors(){
+    const unique = ['All'].concat([...new Set(data.map(x => x.exercise).filter(Boolean))].sort((a,b)=> a.localeCompare(b)));
+    const current = el.chartExercise?.value || 'All';
+    el.chartExercise.innerHTML = unique.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    if(unique.includes(current)) el.chartExercise.value = current; else el.chartExercise.value = 'All';
+  }
+
+  function parseCsvLine(line){
+    const res = []; let cur = ''; let inQ = false;
+    for(let i=0;i<line.length;i++){
+      const ch = line[i];
+      if(inQ){
+        if(ch==='"' && line[i+1]==='"'){ cur+='"'; i++; }
+        else if(ch==='"'){ inQ=false; }
+        else cur+=ch;
+      } else {
+        if(ch===','){ res.push(cur); cur=''; }
+        else if(ch==='"'){ inQ=true; }
+        else cur+=ch;
+      }
+    }
+    res.push(cur); return res;
+  }
+
+  function seedDemoData(ev){
+    if(ev) ev.preventDefault();
+    if(!confirm('Add a few demo rows?')) return;
+    const today = new Date(); const d = off => new Date(today.getTime()-off*86400000).toISOString().slice(0,10);
+    const demo = [
+      {date:d(0), exercise:'Bench Press', reps:10, weight:135, setNumber:1},
+      {date:d(0), exercise:'Bench Press', reps:8, weight:155, setNumber:2},
+      {date:d(0), exercise:'Bench Press', reps:6, weight:175, setNumber:3},
+      {date:d(1), exercise:'Back Squat', reps:5, weight:185, setNumber:1},
+      {date:d(1), exercise:'Back Squat', reps:5, weight:205, setNumber:2},
+      {date:d(3), exercise:'Deadlift', reps:5, weight:225, setNumber:1},
+      {date:d(5), exercise:'Overhead Press', reps:8, weight:85, setNumber:1},
+      {date:d(5), exercise:'Pull-up (BW)', reps:8, weight:0, setNumber:1},
+    ];
+    data = data.concat(demo.map(x => ({...x, id: uid(), notes:'', createdAt: Date.now()})));
+    save(); render(); refreshExercisesDatalist(); refreshChartSelectors(); updateChart();
+  }
+
+  function showHelp(ev){
+    if(ev) ev.preventDefault();
+    alert(`Quick help
+
+• Enter date, exercise, reps, weight, and set # then tap “Add Set”.
+• Use Quick Add to add N identical sets in one tap.
+• Filter by date range or exercise. Use the search box to find notes.
+• Tap Edit/Duplicate/Delete on any row to fix or reuse entries.
+• Data is saved automatically to your device (localStorage).
+• Use Export (CSV/JSON) to back up or analyze in a spreadsheet.
+• Import a CSV/JSON you exported earlier to merge data.
+
+Tip: Add to Home Screen on iOS for a full-screen app.`);
+  }
+
+  // ===== Simple Canvas Chart (mobile-friendly) =====
+  let chartState = { ctx: null, dpr: 1, xMin: 0, xMax: 1, dataXMin: 0, dataXMax: 1, yMin: 0, yMax: 1, data: [] };
+
+  function setupChart(){
+    const canvas = el.chartCanvas; const ctx = canvas.getContext('2d');
+    chartState.ctx = ctx; chartState.dpr = window.devicePixelRatio || 1; resizeCanvas();
+    let lastTouches = null;
+    canvas.addEventListener('touchstart', e => { lastTouches = e.touches; }, {passive:true});
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if(!chartState.data.length) return;
+      if(e.touches.length === 1 && lastTouches && lastTouches.length === 1){
+        const dx = e.touches[0].clientX - lastTouches[0].clientX;
+        const span = chartState.xMax - chartState.xMin;
+        const pxPer = span / canvas.clientWidth;
+        chartState.xMin -= dx * pxPer; chartState.xMax -= dx * pxPer;
+        clampX(); updateChart();
+      }
+      if(e.touches.length === 2){
+        const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+        const prev = dist(lastTouches||e.touches);
+        const cur = dist(e.touches);
+        const zoom = cur/prev;
+        const mid = (chartState.xMin + chartState.xMax)/2;
+        const span = (chartState.xMax - chartState.xMin) / zoom;
+        chartState.xMin = mid - span/2; chartState.xMax = mid + span/2;
+        clampX(); updateChart();
+      }
+      lastTouches = e.touches;
+    }, {passive:false});
+    canvas.addEventListener('touchend', () => { lastTouches = null; }, {passive:true});
+    canvas.addEventListener('mousemove', e => showTooltipAt(e.offsetX));
+    canvas.addEventListener('mouseleave', () => el.chartTooltip.style.display = 'none');
+    updateChart();
+  }
+
+  function resizeCanvas(){
+    const c = el.chartCanvas; const dpr = chartState.dpr;
+    c.width = Math.floor(c.clientWidth * dpr); c.height = Math.floor(c.clientHeight * dpr);
+  }
+  function clampX(){
+    const min = chartState.dataXMin, max = chartState.dataXMax; const span = chartState.xMax - chartState.xMin;
+    if(span <= 1) { chartState.xMin = min; chartState.xMax = max; return; }
+    if(chartState.xMin < min){ chartState.xMax += (min - chartState.xMin); chartState.xMin = min; }
+    if(chartState.xMax > max){ chartState.xMin -= (chartState.xMax - max); chartState.xMax = max; }
+  }
+
+  function updateChart(){
+    if(!el.chartCanvas) return;
+    const exercise = el.chartExercise?.value || 'All';
+    const metric = el.chartMetric?.value || 'volume';
+    const series = buildSeries(exercise, metric);
+    chartState.data = series;
+    if(series.length){
+      chartState.dataXMin = series[0].x; chartState.dataXMax = series[series.length-1].x;
+      if(chartState.xMin === 0 && chartState.xMax === 1){ chartState.xMin = chartState.dataXMin; chartState.xMax = chartState.dataXMax; }
+      const ys = series.map(p=>p.y); chartState.yMin = Math.min(...ys); chartState.yMax = Math.max(...ys) || 1;
+      drawChart();
+    } else {
+      const ctx = chartState.ctx; const c = el.chartCanvas; if(!ctx) return;
+      ctx.clearRect(0,0,c.width,c.height);
+      el.chartTooltip.style.display = 'none';
+    }
+  }
+
+  function buildSeries(exercise, metric){
+    const map = new Map();
+    for(const r of data){
+      if(exercise !== 'All' && r.exercise !== exercise) continue;
+      const k = r.date;
+      if(!map.has(k)) map.set(k, []);
+      map.get(k).push(r);
+    }
+    const dates = [...map.keys()].sort();
+    const out = [];
+    for(const d of dates){
+      const rows = map.get(d);
+      let val = 0;
+      if(metric === 'volume'){
+        val = rows.reduce((s,x)=> s + x.reps*x.weight, 0);
+      } else if(metric === 'topWeight'){
+        val = rows.reduce((m,x)=> Math.max(m, x.weight), 0);
+      } else if(metric === 'est1rm'){
+        val = rows.reduce((m,x)=> Math.max(m, x.weight * (1 + x.reps/30)), 0);
+      }
+      out.push({ x: Date.parse(d)/1000, y: +val.toFixed(2), label: d });
+    }
+    return out;
+  }
+
+  function drawChart(){
+    const ctx = chartState.ctx; const c = el.chartCanvas; if(!ctx) return;
+    ctx.clearRect(0,0,c.width,c.height);
+    const pad = 40 * chartState.dpr; const w = c.width - pad*1.5; const h = c.height - pad*1.2; const x0 = pad; const y0 = pad/2;
+    const xMin = chartState.xMin, xMax = chartState.xMax, yMin = 0, yMax = chartState.yMax * 1.1;
+
+    const xScale = (x)=> x0 + ( (x - xMin) / (xMax - xMin) ) * w;
+    const yScale = (y)=> y0 + h - ( (y - yMin) / (yMax - yMin) ) * h;
+
+    ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 1 * chartState.dpr; ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x0, y0+h); ctx.lineTo(x0+w, y0+h); ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8'; ctx.font = `${12*chartState.dpr}px system-ui, -apple-system`;
+    for(let i=0;i<=4;i++){
+      const yv = yMin + (i/4)*(yMax - yMin); const y = yScale(yv);
+      ctx.strokeStyle = 'rgba(148,163,184,.2)'; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0+w, y); ctx.stroke();
+      ctx.fillText(String(Math.round(yv)), x0-34*chartState.dpr, y+4*chartState.dpr);
+    }
+
+    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2 * chartState.dpr; ctx.beginPath();
+    chartState.data.forEach((p,i)=>{ const X = xScale(p.x), Y = yScale(p.y); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); });
+    ctx.stroke();
+
+    ctx.fillStyle = '#22d3ee';
+    chartState.data.forEach(p=>{ const X=xScale(p.x), Y=yScale(p.y); ctx.beginPath(); ctx.arc(X,Y,2.5*chartState.dpr,0,Math.PI*2); ctx.fill(); });
+  }
+
+  function showTooltipAt(px){
+    const c = el.chartCanvas; const d = chartState.data; if(!d.length) return;
+    const xMin = chartState.xMin, xMax = chartState.xMax; const w = c.clientWidth; const xVal = xMin + (px/w)*(xMax-xMin);
+    let best = d[0]; let bestDiff = Math.abs(d[0].x - xVal);
+    for(const p of d){ const diff = Math.abs(p.x - xVal); if(diff < bestDiff){ best = p; bestDiff = diff; }}
+    el.chartTooltip.style.display = 'block';
+    const metric = el.chartMetric.value;
+    const label = metric==='volume' ? 'Volume' : metric==='topWeight' ? 'Top weight' : 'Est 1RM';
+    el.chartTooltip.textContent = `${best.label} — ${label}: ${Math.round(best.y)}`;
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+})();
+</script>
+</body>
+</html>
