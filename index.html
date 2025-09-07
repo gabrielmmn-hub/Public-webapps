@@ -420,7 +420,8 @@
         if(file.name.endsWith('.json')){
           arr = JSON.parse(text);
         } else {
-          const lines = text.split(/?
+          const lines = text.split(/
+?
 /).filter(Boolean);
           const [h, ...body] = lines; const headers = h.split(',').map(s=>s.trim());
           const idx = k => headers.indexOf(k);
